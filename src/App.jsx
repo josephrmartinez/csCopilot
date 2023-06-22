@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { Configuration, OpenAIApi } from 'openai'
 
@@ -15,7 +15,10 @@ function App() {
   const [conversationArr, setConversationArr] = useState([{
         role: 'system',
         content: 'You are a highly knowledgeable assistant that is always happy to help.'
-    }])
+  }])
+  const [shouldFetchReply, setShouldFetchReply] = useState(false);
+  const chatContainerRef = useRef(null);
+
 
 
   
@@ -29,32 +32,89 @@ function App() {
         content: userInput
       }
     ])
-    setUserInput("")
+    setUserInput("");
+    setShouldFetchReply(true)
   }
 
+  async function fetchReply() {
+    setUserInput("")
+    const response = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: conversationArr,
+    });
+    console.log(response)
+    setConversationArr(prevConversationArr => [
+      ...prevConversationArr, 
+      {
+        role: 'system',
+        content: response.data.choices[0].message.content
+      }
+    ])
+    ;
+  }
+
+  
+
+  // useEffect(() => {
+  // console.log(conversationArr);
+  // }, [conversationArr]);
+  
   useEffect(() => {
-  console.log(conversationArr);
-}, [conversationArr]);
+  if (shouldFetchReply) {
+    fetchReply()
+      .then(() => {
+        // Code to be executed after fetchReply is complete
+      })
+      .catch(error => {
+        // Handle any errors that occurred during fetchReply
+        console.error('Error fetching reply:', error);
+      });
 
+    setShouldFetchReply(false); // Reset the flag after fetchReply is called
+  }
+}, [shouldFetchReply]);
 
+  const chat = conversationArr.slice(1).map((each, index) => (
+  <div
+    key={index}
+    className={`font-semibold my-2 text-${each.role === 'system' ? 'green' : 'blue'}-700 ${
+      each.role === 'system' ? 'text-left' : 'text-right'
+    }`}
+  >
+    {each.content}
+  </div>
+));
+  
+  
+  useEffect(() => {
+      const chatContainer = chatContainerRef.current;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, [chat]);
+  
+  
+  
 
   return (
     <div className='flex flex-col items-center'>
       <h1 className='text-red-800'>chatbot</h1>
-      <div className='w-96 h-96 border rounded-md'>
-
-
+      <div className='w-96 h-96 overflow-y-scroll  border rounded-md px-4' ref={chatContainerRef}>
+        
+        {chat}
         
       </div>
       <div className='w-96 h-20 border rounded-md flex flex-col justify-center'>
         <div className='flex flex-row items-center justify-center'>
           <textarea style={{
-            resize: 'none', height: '78px', paddingLeft: '6px'
-          }}
+            resize: 'none', height: '78px', paddingLeft: '6px'}}
             className='w-72'
             value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}>
-            
+            onChange={(e) => setUserInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.keyCode === 13) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}>
           </textarea>
           <button
             className='w-12 h-12 ml-4 rounded-full active:bg-blue-300 flex flex-col items-center justify-center'
