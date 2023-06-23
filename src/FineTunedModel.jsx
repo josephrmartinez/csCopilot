@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { Configuration, OpenAIApi } from 'openai'
-import { initializeApp } from "firebase/app";
-import {getDatabase, ref, push, get, set } from 'firebase/database'
 
 // OpenAI config
 const configuration = new Configuration({
@@ -10,24 +8,8 @@ const configuration = new Configuration({
 })
 const openai = new OpenAIApi(configuration)
 
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyAIflx1MdGmOKfHia4AXZ_5d2csD_qrswU",
-  authDomain: "chatapp-84249.firebaseapp.com",
-  databaseURL: "https://chatapp-84249-default-rtdb.firebaseio.com",
-  projectId: "chatapp-84249",
-  storageBucket: "chatapp-84249.appspot.com",
-  messagingSenderId: "53562700844",
-  appId: "1:53562700844:web:d751144b99ed9f8d0ccd89"
-};
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app)
-const conversationInDb = ref(database)
-
-// https://chatapp-84249-default-rtdb.firebaseio.com/
-
-function App() {
+function FineTunedModel() {
   const [userInput, setUserInput] = useState("")
   const [conversationArr, setConversationArr] = useState([])
   const [conversationStr, setConversationStr] = useState("")
@@ -35,50 +17,6 @@ function App() {
   const chatContainerRef = useRef(null);
 
 
-  // openai api completions.create -m davinci:ft-personal-2023-06-23-21-59-41 -p <YOUR_PROMPT>
-
-
-
-
-  
-
-  // CODE FOR GPT 3.5 MODEL WITH CONVERSATION ARRAY:
-
-  useEffect(() => {
-    fetchConversation()
-  }, []);
-
-  function fetchConversation() {
-    console.log('fetching')
-    get(conversationInDb).then(async (snapshot) => {
-      if (snapshot.exists()) {
-        console.log('exists')
-        setConversationArr(Object.values(snapshot.val()))
-      } else {
-        console.log('empty')
-        setConversationArr([{
-          role: 'system',
-          content: 'You are a highly knowledgeable customer support agent. Provide short responses to any question I ask.'
-        }])
-
-      }
-    })
-  }
-
-  useEffect(() => {
-  if (conversationArr.length > 0) {
-    set(conversationInDb, conversationArr)
-      .then(() => {
-        console.log('Object updated successfully.');
-      })
-      .catch((error) => {
-        console.error('Error updating object:', error);
-      });
-  }
-}, [conversationArr]);
-  
-
-  
   function handleSubmit() {
     setConversationArr(prevConversationArr => [
       ...prevConversationArr, 
@@ -87,28 +25,39 @@ function App() {
         content: userInput
       }
     ])
-    setUserInput("");
+    setConversationStr(prevConversationStr => prevConversationStr + `${userInput} \n\n###\n\n`)
+    
     setShouldFetchReply(true)
   }
 
+useEffect(() => {
+    console.log(conversationArr);
+    console.log(conversationStr);
+  }, [conversationArr, conversationStr]);
 
 
-
-  async function fetchReply() {
-    setUserInput("")
-    const response = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-      messages: conversationArr,
-    temperature: 1
+async function fetchReply() {
+      setUserInput("");
+    const response = await openai.createCompletion({
+        // model: "davinci:ft-personal-2023-06-23-21-59-41",
+        model: "davinci:ft-personal-2023-06-23-22-53-14",
+    prompt: conversationStr,
+    presence_penalty: 0,
+    frequency_penalty: 0.3,
+    max_tokens: 100,
+    temperature: 0.2,
+    stop: ['\n\n###\n\n', '\n\n', '###']
     });
     console.log(response)
-    setConversationArr(prevConversationArr => [
-      ...prevConversationArr,
-      {
-        role: 'system',
-        content: response.data.choices[0].message.content
-      }
-    ])
+      setConversationArr(prevConversationArr => [
+          ...prevConversationArr,
+          {
+              role: 'system',
+              content: response.data.choices[0].text
+          }
+      ]);
+      setConversationStr(prevConversationStr => prevConversationStr + ` ${response.data.choices[0].text} \n`)
+
     ;
   }
   
@@ -127,7 +76,7 @@ function App() {
   }
 }, [shouldFetchReply]);
 
-  const chat = conversationArr.slice(1).map((each, index) => (
+  const chat = conversationArr.map((each, index) => (
   <div
     key={index}
       className={`font-semibold text-gray-600 my-2 p-2 border rounded-b-2xl w-11/12 
@@ -146,16 +95,13 @@ function App() {
   
   
   function startOver() {
-    setConversationArr([{
-          role: 'system',
-          content: 'You are a highly knowledgeable customer support agent. Provide short responses to any question I ask.'
-        }])
+    setConversationArr([])
   }
 
   return (
     <div className='flex flex-col items-center'>
       <div className='flex flex-row items-center w-full justify-between'>
-        <h1 className='text-gray-800 font-bold my-4'>BukowskiGPT</h1>
+        <h1 className='text-gray-800 font-bold my-4'>MicroGPT</h1>
         <button
           className='border border-gray-400 rounded-md px-4 h-8 active:bg-slate-300'
         onClick={startOver}>start over</button>
@@ -193,4 +139,4 @@ function App() {
   )
 }
 
-export default App
+export default FineTunedModel
