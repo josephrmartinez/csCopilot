@@ -1,26 +1,71 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { Configuration, OpenAIApi } from 'openai'
+import { initializeApp } from "firebase/app";
+import {getDatabase, ref, push, get, set } from 'firebase/database'
 
+// OpenAI config
 const configuration = new Configuration({
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
 })
-
 const openai = new OpenAIApi(configuration)
 
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyAIflx1MdGmOKfHia4AXZ_5d2csD_qrswU",
+  authDomain: "chatapp-84249.firebaseapp.com",
+  databaseURL: "https://chatapp-84249-default-rtdb.firebaseio.com",
+  projectId: "chatapp-84249",
+  storageBucket: "chatapp-84249.appspot.com",
+  messagingSenderId: "53562700844",
+  appId: "1:53562700844:web:d751144b99ed9f8d0ccd89"
+};
 
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app)
+const conversationInDb = ref(database)
+
+// https://chatapp-84249-default-rtdb.firebaseio.com/
 
 function App() {
   const [userInput, setUserInput] = useState("")
-  const [conversationArr, setConversationArr] = useState([{
-        role: 'system',
-        content: 'You are a highly knowledgeable assistant that is always happy to help.'
-  }])
+  const [conversationArr, setConversationArr] = useState([])
   const [shouldFetchReply, setShouldFetchReply] = useState(false);
   const chatContainerRef = useRef(null);
 
 
+  useEffect(() => {
+    fetchConversation()
+  }, []);
 
+  function fetchConversation() {
+    console.log('fetching')
+    get(conversationInDb).then(async (snapshot) => {
+      if (snapshot.exists()) {
+        console.log('exists')
+        setConversationArr(Object.values(snapshot.val()))
+      } else {
+        console.log('empty')
+        setConversationArr([{
+          role: 'system',
+          content: 'You are a highly knowledgeable assistant that communicates in the style of Charles Bukowski. Provide short responses of no more than three sentences to any question I ask.'
+        }])
+
+      }
+    })
+  }
+
+  useEffect(() => {
+  if (conversationArr.length > 0) {
+    set(conversationInDb, conversationArr)
+      .then(() => {
+        console.log('Object updated successfully.');
+      })
+      .catch((error) => {
+        console.error('Error updating object:', error);
+      });
+  }
+}, [conversationArr]);
   
 
   
@@ -40,11 +85,12 @@ function App() {
     setUserInput("")
     const response = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
-    messages: conversationArr,
+      messages: conversationArr,
+    temperature: 1
     });
     console.log(response)
     setConversationArr(prevConversationArr => [
-      ...prevConversationArr, 
+      ...prevConversationArr,
       {
         role: 'system',
         content: response.data.choices[0].message.content
@@ -52,12 +98,37 @@ function App() {
     ])
     ;
   }
+  
+
+//   function fetchReply() {
+//     get(conversationInDb).then(async (snapshot) => {
+//         if (snapshot.exists()) {
+//             const conversationArr = Object.values(snapshot.val())
+//             conversationArr.unshift(instructionObj)
+//             const response = await openai.createChatCompletion({
+//                 model: 'gpt-4',
+//                 messages: conversationArr,
+//                 presence_penalty: 0,
+//                 frequency_penalty: 0.3
+//             })
+// /*
+// Challenge:
+//     1. Add the completion to the database.
+//     2. Ask the chatbot something to check it's working.
+// */
+//           push(conversationInDb, response.data.choices[0].message)
+//             renderTypewriterText(response.data.choices[0].message.content)
+//         }
+//         else {
+//             console.log('No data available')
+//         }
+
+//     })
+// }
 
   
 
-  // useEffect(() => {
-  // console.log(conversationArr);
-  // }, [conversationArr]);
+  
   
   useEffect(() => {
   if (shouldFetchReply) {
@@ -77,8 +148,8 @@ function App() {
   const chat = conversationArr.slice(1).map((each, index) => (
   <div
     key={index}
-    className={`font-semibold my-2 text-${each.role === 'system' ? 'green' : 'blue'}-700 ${
-      each.role === 'system' ? 'text-left' : 'text-right'
+      className={`font-semibold text-gray-600 my-2 p-2 border rounded-b-2xl w-11/12 
+     ${each.role === 'system' ? 'text-left rounded-tr-2xl border-green-800' : 'self-end text-right rounded-tl-2xl border-blue-800'
     }`}
   >
     {each.content}
@@ -96,8 +167,8 @@ function App() {
 
   return (
     <div className='flex flex-col items-center'>
-      <h1 className='text-red-800'>chatbot</h1>
-      <div className='w-96 h-96 overflow-y-scroll  border rounded-md px-4' ref={chatContainerRef}>
+      <h1 className='text-gray-800 font-bold my-4'>BukowskiGPT</h1>
+      <div className='w-96 h-96 overflow-y-scroll scroll-smooth   border rounded-md px-1 flex flex-col' ref={chatContainerRef}>
         
         {chat}
         
