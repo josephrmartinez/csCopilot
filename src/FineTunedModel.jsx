@@ -14,7 +14,8 @@ function FineTunedModel() {
   const [conversationArr, setConversationArr] = useState([])
   const [conversationStr, setConversationStr] = useState("")
   const [shouldFetchReply, setShouldFetchReply] = useState(false);
-  const chatContainerRef = useRef(null);
+    const chatContainerRef = useRef(null);
+    const [isAnimating, setIsAnimating] = useState(false)
 
 
   function handleSubmit() {
@@ -94,19 +95,31 @@ async function fetchReply() {
     }, [chat]);
   
   
-  function startOver() {
-    setConversationArr([])
+    function startOver() {
+        setIsAnimating(true);
+        setTimeout(() => {
+        setIsAnimating(false);
+        setConversationArr([])
+        }, 500);
+
   }
 
+    
+    function handleRedoIconClick() {
+        console.log("yow!")
+    }
+    
   return (
     <div className='flex flex-col items-center'>
-      <div className='flex flex-row items-center w-full justify-between'>
-        <h1 className='text-gray-800 font-bold my-4'>MicroGPT</h1>
-        <button
-          className='border border-gray-400 rounded-md px-4 h-8 active:bg-slate-300'
-        onClick={startOver}>start over</button>
+      <div className='flex flex-row items-center w-96 justify-between'>
+        <h1 className='text-gray-800 font-bold my-4'>Arizona Microgreens GPT</h1>
+              <div onClick={startOver} className={`mr-2 cursor-pointer  ${isAnimating && 'animate-spin'}`} style={{ animationDuration: '500ms' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z"></path></svg>
+
+        </div>
       </div>
       
+          
       <div className='w-96 h-96 overflow-y-scroll scroll-smooth   border rounded-md px-1 flex flex-col' ref={chatContainerRef}>
         
         {chat}
